@@ -19,7 +19,7 @@ const ExtendedForecast = ({ filteredForecast }) => {
           />
           <h5>{data.weather[0].description}</h5>
           <h5 className="min-max-temp">
-            {data.main.temp_max}&deg; /{" "}
+            {data.main.temp_max}&deg;/{" "}
             {data.main.temp_min}&deg;
           </h5>
         </div>
