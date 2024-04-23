@@ -1,16 +1,44 @@
 import React, { useEffect, useState } from 'react'
-import Icon from "react-icons-kit"
-import {search} from 'react-icons-kit/feather/search'
-import { useDispatch } from 'react-redux';
-import { getCityData } from './Store/Slices/WeatherSlice';
+import { useDispatch ,useSelector} from 'react-redux';
+import { getCityData,get5DaysForecast } from './Store/Slices/WeatherSlice';
+import { SphereSpinner } from "react-spinners-kit";
+import SearchForm from './components/structure/SearchForm';
+import WeatherDetails from './components/structure/WeatherDetails';
+import ExtendedForecast from "./components/structure/ExtendedForecast";
 
 
 const App = () => {
+  // redux state
+  const {
+    citySearchLoading,
+    citySearchData,
+    forecastLoading,
+    forecastData,
+    forecastError,
+  } = useSelector((state) => state.weather);
+
+  // main loadings state
+  const [loadings, setLoadings] = useState(true);
+
+   // check if any of redux loading state is still true
+  const allLoadings = [citySearchLoading, forecastLoading];
+
+  useEffect(() => {
+    const isAnyChildLoading = allLoadings.some((state) => state);
+    setLoadings(isAnyChildLoading);
+  }, [allLoadings]);
+
   //City state
   const [city,setCity]=useState('gurugram');
 
   //unit state
   const [unit,setUnit]=useState('metric'); //metric=c || imperial=f
+
+  const toggleUnit = () => {
+    setLoadings(true);
+    setUnit(unit === "metric" ? "imperial" : "metric");
+  };
+
 
   //dispatch 
   const dispatch= useDispatch();
@@ -24,7 +52,13 @@ const App = () => {
       })
     ).then((res)=>{
         if(!res.payload.error){
-          dispatch();
+          dispatch(
+            get5DaysForecast({
+              lat: res.payload.data.coord.lat,
+              lon: res.payload.data.coord.lon,
+              unit,
+            })
+          );
         }
       // console.log(res)
     })
@@ -33,32 +67,89 @@ const App = () => {
   //intial render
   useEffect(()=>{
     fetchData();
-  },[])
+  },[unit])
 
 
-  function handleCitySearch(e){
+  const handleCitySearch=(e)=>{
     e.preventDefault();
+    setLoadings(true);
+    fetchData();
   }
+
+  // function to filter forecast data based on the time of the first object
+  const filterForecastByFirstObjTime = (forecastData) => {
+    if (!forecastData) {
+      return [];
+    }
+
+    const firstObjTime = forecastData[0].dt_txt.split(" ")[1];
+    return forecastData.filter((data) => data.dt_txt.endsWith(firstObjTime));
+  };
+
+  const filteredForecast = filterForecastByFirstObjTime(forecastData?.list);
 
   return (
     <div className="background">
       <div className="box">
-        {/* City Search*/}
         WEATHER FORECAST DASHBOARD
-        <form autoComplete="off" onSubmit={handleCitySearch}>
-          <label>
-            <Icon icon={search} size={20} />
-          </label>
-          <input 
-          type="text"
-          className='city-input'
-          placeholder="Enter City Name"
-          required
-          vlue={city}
-          onChange={(e)=>setCity(e.target.value)}
-          ></input>
-          <button type="submit">Go</button>
-        </form>
+        {/* City Search*/}
+         <SearchForm handleCitySearch={handleCitySearch} city={city} setCity={setCity}/>
+
+         {/* current weather details box */}
+        <div className="current-weather-details-box">
+            {/* header */}
+          <div className="details-box-header">
+            {/* heading */}
+            <h4>Current Weather</h4>
+
+            {/* switch */}
+            <div className="switch" onClick={toggleUnit}>
+              <div
+                className={`switch-toggle ${unit === "metric" ? "c" : "f"}`}
+              ></div>
+              <span className="c">C</span>
+              <span className="f">F</span>
+            </div>
+          </div>
+          {loadings ? (
+            <div className="loader">
+              <SphereSpinner loadings={loadings} color="#2fa5ed" size={20} />
+            </div>
+          ) : (
+            <>
+              {citySearchData && citySearchData.error ? (
+                <div className="error-msg">{citySearchData.error}</div>
+              ) : (
+                <>
+                  {forecastError ? (
+                    <div className="error-msg">{forecastError}</div>
+                  ) : (
+                    <>
+                      {citySearchData && citySearchData.data ? (
+                         <WeatherDetails citySearchData={citySearchData} unit={unit} />
+                      ) : (
+                        <div className="error-msg">No Data Found</div>
+                      )}
+
+
+                      {/* extended forecastData */}
+                      <h4 className="extended-forecast-heading">
+                         5 Days Forecast
+                      </h4>
+                      {filteredForecast.length > 0 ? (
+                         <ExtendedForecast filteredForecast={filteredForecast} />
+                      ) : (
+                        <div className="error-msg">No Data Found</div>
+                      )}
+                       </>
+                  )}
+                </>
+              )}
+            </>
+          )}
+          
+        </div>
+        
       </div>
     </div>
   )
@@ -66,48 +157,3 @@ const App = () => {
 
 export default App
 
-// import React, { useEffect, useState } from "react";
-
-
-// import SearchBar from './container/SearchBar';
-
-// function App() {
-//   const [data, setData] = useState([]);
-//   const [filteredData, setFilteredData] = useState([]);
-//   console.log(filteredData);
-
-//   useEffect(()=>{
-//     fetchData();
-//   },[])
-
-  
-//   async function fetchData(){
-//     try{
-//         const response= await fetch("https://jsonplaceholder.typicode.com/users");
-//         const data = await response.json();
-//         console.log(data);
-//         setData(data);
-//     }
-//     catch(error){
-//         console.error('Error fetching data:', error);
-//     }
-    
-//   }
-  
-//    function handleSearch(query){
-
-//     const filtered = data.filter(item => item.name.toLowerCase().includes(query.toLowerCase()));
-//     setFilteredData(filtered);
-//    }
-   
-//   return (
-//     <div>
-//      <SearchBar onSearch={handleSearch}/>
-//      {filteredData.map((filter ,id)=>
-//      <div key={filter.id}>{filter.name}</div>)}
-
-//     </div>
-//   );
-// }
-
-// export default App;
